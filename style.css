@@ -1,0 +1,139 @@
+/* Общие стили */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+        Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Убираем прокрутку */
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Контейнер игры */
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 600px;
+    max-height: 800px;
+    border: 8px solid #8b4513; /* "Деревянная" рамка */
+    background-color: #fdf8e2; /* Фон "коробки" */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    overflow: hidden; /* Важно, чтобы canvas не вылезал */
+}
+
+/* Canvas, который создаст Matter.js */
+canvas {
+    display: block;
+    background-color: transparent;
+    width: 100%;
+    height: 100%;
+}
+
+/* Интерфейс (счет) */
+#ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 10;
+    pointer-events: none; /* Позволяет кликать "сквозь" UI */
+}
+
+/* Модальное окно "Игра окончена" */
+#game-over-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+#game-over-modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 30px 40px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    max-width: 90%;
+    max-height: 90%;
+    overflow: auto;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: #d9534f;
+}
+
+#restart-button {
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#restart-button:hover {
+    background-color: #4cae4c;
+}
+
+/* Медиа-запросы для мобильных устройств */
+@media (max-width: 768px) {
+    #ui {
+        font-size: 18px;
+        padding: 8px;
+    }
+    
+    .modal-content {
+        padding: 20px;
+    }
+    
+    #restart-button {
+        padding: 10px 20px;
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    #ui {
+        font-size: 16px;
+        padding: 6px;
+    }
+    
+    .modal-content {
+        padding: 15px;
+    }
+    
+    #restart-button {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
