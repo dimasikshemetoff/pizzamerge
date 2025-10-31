@@ -275,7 +275,7 @@ function dropCurrentPizza(x) {
     }, 500);
 }
 
-// --- НОВАЯ Функция для создания эффекта частиц ---
+// --- Функция для создания эффекта частиц ---
 function createParticleEffect(x, y, color = '#FF6B35', count = 15) {
     for (let i = 0; i < count; i++) {
         const particle = document.createElement('div');
@@ -325,18 +325,16 @@ function createParticleEffect(x, y, color = '#FF6B35', count = 15) {
     }
 }
 
-// --- Обработка столкновений ---
+// --- УПРОЩЕННАЯ Обработка столкновений ---
 function handleCollision(event) {
     if (isGameOver) return;
 
     const pairs = event.pairs;
-    const processedPairs = new Set();
 
     for (const pair of pairs) {
         const { bodyA, bodyB } = pair;
 
-        // Пропускаем пары, которые уже обрабатываются или ожидают слияния
-        if (processedPairs.has(bodyA.id) || processedPairs.has(bodyB.id)) continue;
+        // Пропускаем, если пиццы уже ждут слияния
         if (pendingMerges.has(bodyA.id) || pendingMerges.has(bodyB.id)) continue;
 
         if (bodyA.label === 'pizza' && bodyB.label === 'pizza' &&
@@ -345,9 +343,7 @@ function handleCollision(event) {
             
             if (bodyA === currentPizza || bodyB === currentPizza) continue;
 
-            // Помечаем пиццы как обрабатываемые
-            processedPairs.add(bodyA.id);
-            processedPairs.add(bodyB.id);
+            // Блокируем пиццы от повторных слияний
             pendingMerges.set(bodyA.id, true);
             pendingMerges.set(bodyB.id, true);
 
@@ -360,34 +356,31 @@ function handleCollision(event) {
 
             // Создаем эффект частиц в месте слияния
             createParticleEffect(
-                newX * scaleFactor, 
-                newY * scaleFactor, 
+                newX, 
+                newY, 
                 '#FF6B35', 
                 20
             );
 
             console.log(`Столкновение: две пиццы уровня ${bodyA.level} объединились в пиццу уровня ${newLevel}`);
             
-            // Задержка перед созданием новой пиццы для улучшения анимации
-            setTimeout(() => {
-                const newPizza = createPizza(newX, newY, newLevel);
-                
-                Body.setVelocity(newPizza, {
-                    x: (bodyA.velocity.x + bodyB.velocity.x) / 2,
-                    y: (bodyA.velocity.y + bodyB.velocity.y) / 2
-                });
-                
-                World.add(world, newPizza);
-                
-                // Удаляем старые пиццы после задержки
-                setTimeout(() => {
-                    World.remove(world, [bodyA, bodyB]);
-                    pendingMerges.delete(bodyA.id);
-                    pendingMerges.delete(bodyB.id);
-                }, 50);
-                
-                updateScoreUI();
-            }, 150); // Задержка для визуального эффекта
+            // Удаляем старые пиццы
+            World.remove(world, [bodyA, bodyB]);
+            pendingMerges.delete(bodyA.id);
+            pendingMerges.delete(bodyB.id);
+
+            // Создаем новую пиццу
+            const newPizza = createPizza(newX, newY, newLevel);
+            
+            // Задаем скорость новой пицце
+            Body.setVelocity(newPizza, {
+                x: (bodyA.velocity.x + bodyB.velocity.x) / 2,
+                y: (bodyA.velocity.y + bodyB.velocity.y) / 2
+            });
+            
+            World.add(world, newPizza);
+            
+            updateScoreUI();
         }
     }
 }
