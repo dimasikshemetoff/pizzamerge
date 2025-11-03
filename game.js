@@ -204,33 +204,87 @@ function createPizza(x, y, level) {
     return pizza;
 }
 
-// --- НОВАЯ Функция для проверки столкновений при спавне ---
-function findSafeSpawnPosition(desiredX, desiredY, radius) {
-    let safeY = desiredY;
-    const maxAttempts = 20;
-    const yIncrement = 30 * scaleFactor;
+// --- Функция проверки занятости позиции ---
+function isPositionOccupied(x, y, radius) {
+    const testPosition = Vector.create(x, y);
+    const allBodies = Composite.allBodies(world);
     
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const testPosition = Vector.create(desiredX, safeY);
-        const collisions = Query.point(Composite.allBodies(world), testPosition);
-        
-        const hasCollision = collisions.some(body => 
-            body.label === 'pizza' && 
-            Vector.magnitude(Vector.sub(body.position, testPosition)) < (body.circleRadius + radius)
-        );
-        
-        if (!hasCollision) {
-            return safeY;
-        }
-        
-        safeY -= yIncrement;
-        if (safeY < radius) {
-            // Достигли верха, возвращаем исходную позицию
-            return desiredY;
+    // Проверяем столкновение с другими пиццами (исключая текущую пиццу, если она есть)
+    for (const body of allBodies) {
+        if (body.label === 'pizza' && body !== currentPizza) {
+            const distance = Vector.magnitude(Vector.sub(body.position, testPosition));
+            const minDistance = body.circleRadius + radius;
+            
+            if (distance < minDistance) {
+                return true; // Позиция занята
+            }
         }
     }
     
-    return desiredY;
+    return false; // Позиция свободна
+}
+
+// --- УЛУЧШЕННАЯ Функция для проверки столкновений при спавне ---
+function findSafeSpawnPosition(desiredX, desiredY, radius) {
+    let safeX = desiredX;
+    let safeY = desiredY;
+    
+    const maxVerticalAttempts = 20;
+    const maxHorizontalAttempts = 10;
+    const yIncrement = 30 * scaleFactor;
+    const xIncrement = 40 * scaleFactor;
+    
+    // Сначала проверяем желаемую позицию
+    let foundPosition = false;
+    
+    // Проверяем разные высоты
+    for (let vAttempt = 0; vAttempt < maxVerticalAttempts && !foundPosition; vAttempt++) {
+        const currentY = desiredY - (vAttempt * yIncrement);
+        
+        // Если достигли верха, прекращаем поиск
+        if (currentY < radius) break;
+        
+        // Проверяем центральную позицию на этой высоте
+        if (!isPositionOccupied(desiredX, currentY, radius)) {
+            safeX = desiredX;
+            safeY = currentY;
+            foundPosition = true;
+            break;
+        }
+        
+        // Если центральная позиция занята, проверяем позиции слева и справа
+        for (let hAttempt = 1; hAttempt <= maxHorizontalAttempts && !foundPosition; hAttempt++) {
+            // Проверяем позицию слева
+            const leftX = desiredX - (hAttempt * xIncrement);
+            if (leftX >= radius + 20 * scaleFactor) { // Учитываем левую стенку
+                if (!isPositionOccupied(leftX, currentY, radius)) {
+                    safeX = leftX;
+                    safeY = currentY;
+                    foundPosition = true;
+                    break;
+                }
+            }
+            
+            // Проверяем позицию справа
+            const rightX = desiredX + (hAttempt * xIncrement);
+            const canvasWidth = render.canvas.width;
+            if (rightX <= canvasWidth - radius - 20 * scaleFactor) { // Учитываем правую стенку
+                if (!isPositionOccupied(rightX, currentY, radius)) {
+                    safeX = rightX;
+                    safeY = currentY;
+                    foundPosition = true;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Если не нашли безопасную позицию, возвращаем исходную (будет столкновение)
+    if (!foundPosition) {
+        console.warn("Не удалось найти безопасную позицию для спавна, используется исходная позиция");
+    }
+    
+    return { x: safeX, y: safeY };
 }
 
 // --- Создание следующей пиццы ---
@@ -245,20 +299,59 @@ function spawnNextPizza() {
     const pizzaRadius = PIZZA_TYPES[nextLevel - 1].radius * scaleFactor;
     
     // Находим безопасную позицию для спавна
-    const safeY = findSafeSpawnPosition(canvasWidth / 2, desiredY, pizzaRadius);
+    const safePosition = findSafeSpawnPosition(canvasWidth / 2, desiredY, pizzaRadius);
     
-    currentPizza = createPizza(canvasWidth / 2, safeY, nextLevel);
+    currentPizza = createPizza(safePosition.x, safePosition.y, nextLevel);
     
     Body.setStatic(currentPizza, true);
     currentPizza.isSensor = true;
     
     World.add(world, currentPizza);
-    console.log(`Сгенерирована новая пицца уровня ${nextLevel} для броска на высоте ${safeY}`);
+    console.log(`Сгенерирована новая пицца уровня ${nextLevel} для броска на позиции (${safePosition.x}, ${safePosition.y})`);
 }
 
-// --- Бросок пиццы ---
+// --- Бросок пиццы (обновленная функция с проверкой) ---
 function dropCurrentPizza(x) {
     if (!currentPizza || disableDrop || isGameOver) return;
+
+    const pizzaRadius = PIZZA_TYPES[currentPizza.level - 1].radius * scaleFactor;
+    
+    // Проверяем, не пересекается ли позиция броска с другими пиццами
+    if (isPositionOccupied(x, currentPizza.position.y, pizzaRadius)) {
+        console.log("Позиция броска занята, ищем альтернативную позицию");
+        
+        // Ищем безопасную позицию слева или справа
+        const canvasWidth = render.canvas.width;
+        const maxAttempts = 5;
+        const xIncrement = 40 * scaleFactor;
+        
+        let foundPosition = false;
+        for (let attempt = 1; attempt <= maxAttempts && !foundPosition; attempt++) {
+            // Проверяем слева
+            const leftX = x - (attempt * xIncrement);
+            if (leftX >= pizzaRadius + 20 * scaleFactor) {
+                if (!isPositionOccupied(leftX, currentPizza.position.y, pizzaRadius)) {
+                    x = leftX;
+                    foundPosition = true;
+                    break;
+                }
+            }
+            
+            // Проверяем справа
+            const rightX = x + (attempt * xIncrement);
+            if (rightX <= canvasWidth - pizzaRadius - 20 * scaleFactor) {
+                if (!isPositionOccupied(rightX, currentPizza.position.y, pizzaRadius)) {
+                    x = rightX;
+                    foundPosition = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!foundPosition) {
+            console.warn("Не удалось найти безопасную позицию для броска");
+        }
+    }
 
     console.log(`Бросаем пиццу уровня ${currentPizza.level} в позиции x=${x}`);
     disableDrop = true;
